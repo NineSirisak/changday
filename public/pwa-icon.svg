@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <linearGradient id="dark-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shape -->
+  <rect width="512" height="512" rx="112" fill="url(#dark-bg)" />
+  <!-- Hexagonal Gold Crest Frame -->
+  <polygon points="256,40 442,148 442,364 256,472 70,364 70,148" fill="none" stroke="url(#gold-grad)" stroke-width="24" stroke-linejoin="round" />
+  <!-- Inner Details -->
+  <polygon points="256,70 416,162 416,350 256,442 96,350 96,162" fill="#090d16" opacity="0.85" />
+  <!-- Monogram text DN -->
+  <text x="256" y="305" text-anchor="middle" font-family="'Prompt', 'Sarabun', sans-serif" font-weight="900" font-size="144" fill="url(#gold-grad)" letter-spacing="2">DN</text>
+  <!-- Subtext -->
+  <text x="256" y="375" text-anchor="middle" font-family="'Prompt', 'Sarabun', sans-serif" font-weight="600" font-size="28" fill="#e2e8f0" letter-spacing="6">DAY NERAMIT</text>
+</svg>

@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "BusinessProfile": {
+      "title": "BusinessProfile",
+      "description": "User business profiles for quotation headings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slogan": { "type": "string" },
+        "taxId": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
+        "line": { "type": "string" },
+        "customLogo": { "type": "string" },
+        "senderType": { "type": "string", "enum": ["corporate", "individual"] }
+      },
+      "required": ["id", "name"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customers stored in the database",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "taxId": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Quotation": {
+      "title": "Quotation",
+      "description": "Quotations created by the user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "docNo": { "type": "string" },
+        "docDate": { "type": "string" },
+        "validUntil": { "type": "string" },
+        "refNo": { "type": "string" },
+        "profileId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "discount": { "type": "number" },
+        "discountType": { "type": "string", "enum": ["flat", "percent"] },
+        "vatEnabled": { "type": "boolean" },
+        "vatRate": { "type": "number" },
+        "paymentTerms": { "type": "string" },
+        "signeeName": { "type": "string" },
+        "signeePosition": { "type": "string" },
+        "template": { "type": "string", "enum": ["classic", "luxury", "dark", "elegant"] },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "docNo", "profileId", "customerId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profiles/{profileId}": {
+      "schema": { "$ref": "BusinessProfile" },
+      "description": "User Business Profiles"
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": { "$ref": "Customer" },
+      "description": "User Customers"
+    },
+    "/users/{userId}/quotations/{quotationId}": {
+      "schema": { "$ref": "Quotation" },
+      "description": "User Quotations"
+    }
+  }
+}

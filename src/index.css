@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Sarabun", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-title: "Prompt", sans-serif;
+}
+
+/* Customized scrollbar design for workspace sidebar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #272d3d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3c455c;
+}
+
+/* ================= PRINT ENGINE OPTIMIZATION ================= */
+@media print {
+  /* Hide all dashboard UI, action panels, and tooltips */
+  .no-print,
+  button,
+  header,
+  nav,
+  input,
+  select,
+  textarea {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Force display of background graphics during print on Chrome/Safari */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Unscale paper element and force natural dimensions on printer */
+  #quotation-paper {
+    transform: none !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 12mm !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hide print headers/footers in templates if dark background */
+  #quotation-paper.bg-zinc-950 {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+  }
+
+  #quotation-paper.bg-zinc-950 h2 {
+    color: #000000 !important;
+  }
+
+  /* Align paper boundaries precisely on A4 print sheet */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}

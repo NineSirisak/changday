@@ -1,0 +1,6 @@
+{
+  "name": "Day Neramit Quotation Builder",
+  "description": "เดย์ เนรมิต - ระบบสร้างและจัดการใบเสนอราคาออนไลน์ระดับพรีเมียมสไตล์นิติบุคคลและบุคคลธรรมดา มีระบบคำนวณภาษี เลือกได้ 4 เทมเพลต และรองรับออฟไลน์ (PWA)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

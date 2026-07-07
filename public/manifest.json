@@ -1,0 +1,24 @@
+{
+  "short_name": "เดย์ เนรมิต",
+  "name": "Day Neramit - ระบบใบเสนอราคาพรีเมียม",
+  "description": "ระบบบันทึก คำนวณภาษี และดาวน์โหลดใบเสนอราคาออฟไลน์สไตล์พรีเมียม",
+  "icons": [
+    {
+      "src": "pwa-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#fbbf24",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}
