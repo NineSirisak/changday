@@ -79,7 +79,8 @@ function convertOklchStringToRgb(str: string): string {
       const colorPart = parts[0].trim();
       const alphaPart = parts[1] ? parts[1].trim() : null;
 
-      const colorValues = colorPart.split(/\s+/);
+      // Split by spaces, commas, or multiple delimiters to be exceptionally resilient
+      const colorValues = colorPart.split(/[\s,]+/).filter(Boolean);
       if (colorValues.length < 3) {
         return 'rgb(100, 116, 139)'; // Safe fallback color
       }
@@ -226,6 +227,137 @@ export default function App() {
   const [currentQuotation, setCurrentQuotation] = useState<Quotation>(DEFAULT_QUOTATION);
   const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Google Auth & Cloud Sync State Machine
+  const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportedDocUrl, setExportedDocUrl] = useState<string | null>(null);
+
+  // Load session from Firebase on load
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (currentUser, token) => {
+        setUser(currentUser);
+        setAccessToken(token);
+      },
+      () => {
+        setUser(null);
+        setAccessToken('');
+      }
+    );
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      const res = await googleSignIn();
+      if (res) {
+        setUser(res.user);
+        setAccessToken(res.accessToken);
+        showToast(`🔑 เข้าสู่ระบบกูเกิลสำเร็จ ต้อนรับคุณ ${res.user.displayName || 'ผู้ใช้งาน'}`, 'success');
+        // Automatically trigger sync upon login
+        await triggerCloudSync(res.user.uid, res.accessToken);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      showToast('❌ เข้าสู่ระบบล้มเหลว กรุณาลองใหม่อีกครั้ง', 'error');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await firebaseLogout();
+      setUser(null);
+      setAccessToken('');
+      setExportedDocUrl(null);
+      showToast('🚪 ออกจากระบบกูเกิลสำเร็จแล้ว ข้อมูลจะคงอยู่บนเครื่องของคุณแบบออฟไลน์', 'success');
+    } catch (err) {
+      console.error('Logout error:', err);
+      showToast('❌ ไม่สามารถออกจากระบบได้', 'error');
+    }
+  };
+
+  const handleExportToGoogleDocs = async () => {
+    if (!accessToken) {
+      showToast('⚠️ กรุณาเข้าสู่ระบบกูเกิลก่อนเชื่อมต่อออกเอกสาร Docs', 'error');
+      return;
+    }
+    try {
+      setIsExporting(true);
+      showToast('⏳ กำลังแปลงข้อมูลและสร้างเอกสาร Google Docs รูปแบบตารางอันล้ำสมัย...', 'info');
+      
+      const activeProfile = profiles.find((p) => p.id === currentQuotation.profileId) || profiles[0];
+      const activeCustomer = customers.find((c) => c.id === currentQuotation.customerId) || customers[0];
+      
+      const res = await exportToGoogleDocs(accessToken, currentQuotation, activeProfile, activeCustomer);
+      setExportedDocUrl(res.docUrl);
+      showToast('🎉 ส่งออกใบเสนอราคาสู่ Google Docs สำเร็จ! เปิดดูลิงก์ได้ทันที', 'success');
+    } catch (err) {
+      console.error('Google Docs export error:', err);
+      showToast('❌ เกิดข้อผิดพลาดในการส่งออก Google Docs', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const triggerCloudSync = async (userId: string, token: string) => {
+    try {
+      setIsSyncing(true);
+      showToast('🔄 กำลังเชื่อมต่อระบบคลาวด์และประสานข้อมูลสำรอง...', 'info');
+      
+      // 1. Fetch from firestore
+      const cloudData = await fetchAllUserDataFromFirestore(userId);
+      
+      // 2. Perform safe merge
+      let mergedProfiles = [...profiles];
+      let mergedCustomers = [...customers];
+      let mergedSaved = [...savedQuotations];
+      
+      if (cloudData.profiles.length > 0 || cloudData.customers.length > 0 || cloudData.savedQuotations.length > 0) {
+        // Merge profiles
+        const profileMap = new Map(profiles.map(p => [p.id, p]));
+        cloudData.profiles.forEach(p => { if (!profileMap.has(p.id)) profileMap.set(p.id, p); });
+        mergedProfiles = Array.from(profileMap.values());
+
+        // Merge customers
+        const customerMap = new Map(customers.map(c => [c.id, c]));
+        cloudData.customers.forEach(c => { if (!customerMap.has(c.id)) customerMap.set(c.id, c); });
+        mergedCustomers = Array.from(customerMap.values());
+
+        // Merge quotations
+        const quoteMap = new Map(savedQuotations.map(q => [q.id, q]));
+        cloudData.savedQuotations.forEach(q => { if (!quoteMap.has(q.id)) quoteMap.set(q.id, q); });
+        mergedSaved = Array.from(quoteMap.values());
+      }
+
+      // 3. Upload all local data to Firestore to make sure cloud is perfectly backed up and synced
+      for (const p of mergedProfiles) {
+        await saveProfileToFirestore(userId, p);
+      }
+      for (const c of mergedCustomers) {
+        await saveCustomerToFirestore(userId, c);
+      }
+      for (const q of mergedSaved) {
+        await saveQuotationToFirestore(userId, q);
+      }
+      
+      // Update local PWA state machine
+      syncAndSave(mergedProfiles, mergedCustomers, mergedSaved, currentQuotation);
+      
+      showToast('☁️ ประสานข้อมูลคลาวด์สำรองและฐานข้อมูลออฟไลน์เรียบร้อยแล้ว!', 'success');
+    } catch (err) {
+      console.error('Cloud sync error:', err);
+      showToast('❌ ไม่สามารถประสานข้อมูลสำรองกับคลาวด์ได้', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Interactive Toast Frame State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -450,6 +582,9 @@ export default function App() {
       return;
     }
 
+    // Capture the original getComputedStyle to restore later
+    const originalGetComputedStyle = window.getComputedStyle;
+
     try {
       setIsGeneratingPdf(true);
       showToast('⏳ กำลังจัดเตรียมหน้ากระดาษและดาวน์โหลด PDF ความละเอียดสูง...', 'info');
@@ -509,47 +644,81 @@ export default function App() {
         console.warn('Failed to pre-process stylesheets for html2canvas:', stylePreloadErr);
       }
 
-      // Force canvas options for pixel-perfect rendering
-      const canvas = await html2canvas(element, {
-        scale: 2, // Double DPI/retina scale for crystal clear font vectors
-        useCORS: true,
-        logging: false,
-        backgroundColor: currentQuotation.template === 'luxury' || currentQuotation.template === 'dark' ? '#09090b' : '#ffffff',
-        onclone: (clonedDoc) => {
-          const elements = clonedDoc.getElementsByTagName('*');
-          const props = [
-            'color',
-            'background-color',
-            'border-color',
-            'border-top-color',
-            'border-right-color',
-            'border-bottom-color',
-            'border-left-color',
-            'fill',
-            'stroke',
-            'outline-color',
-            'box-shadow',
-          ];
-
-          for (let i = 0; i < elements.length; i++) {
-            const el = elements[i] as HTMLElement;
-            if (!el.style) continue;
-
-            try {
-              const style = window.getComputedStyle(el);
-              props.forEach((prop) => {
-                const val = style.getPropertyValue(prop);
+      // MONKEY-PATCH window.getComputedStyle to intercept and replace any 'oklch' values.
+      // This is the absolute ultimate guarantee that html2canvas will never process an oklch color string,
+      // completely bypassing the internal color-parsing crash!
+      window.getComputedStyle = function (el, pseudoElt) {
+        const style = originalGetComputedStyle(el, pseudoElt);
+        return new Proxy(style, {
+          get(target, prop) {
+            if (prop === 'getPropertyValue') {
+              return function (propertyName: string) {
+                const val = target.getPropertyValue(propertyName);
                 if (val && typeof val === 'string' && val.includes('oklch')) {
-                  const converted = convertOklchStringToRgb(val);
-                  el.style.setProperty(prop, converted, 'important');
+                  return convertOklchStringToRgb(val);
                 }
-              });
-            } catch (styleErr) {
-              // Safe fallback for detached elements
+                return val;
+              };
+            }
+            const val = (target as any)[prop];
+            if (val && typeof val === 'string' && val.includes('oklch')) {
+              return convertOklchStringToRgb(val);
+            }
+            if (typeof val === 'function') {
+              return val.bind(target);
+            }
+            return val;
+          },
+        });
+      };
+
+      // Force canvas options for pixel-perfect rendering
+      let canvas;
+      try {
+        canvas = await html2canvas(element, {
+          scale: 2, // Double DPI/retina scale for crystal clear font vectors
+          useCORS: true,
+          logging: false,
+          backgroundColor: currentQuotation.template === 'luxury' || currentQuotation.template === 'dark' ? '#09090b' : '#ffffff',
+          onclone: (clonedDoc) => {
+            const elements = clonedDoc.getElementsByTagName('*');
+            const props = [
+              'color',
+              'background-color',
+              'border-color',
+              'border-top-color',
+              'border-right-color',
+              'border-bottom-color',
+              'border-left-color',
+              'fill',
+              'stroke',
+              'outline-color',
+              'box-shadow',
+            ];
+
+            for (let i = 0; i < elements.length; i++) {
+              const el = elements[i] as HTMLElement;
+              if (!el.style) continue;
+
+              try {
+                const style = window.getComputedStyle(el);
+                props.forEach((prop) => {
+                  const val = style.getPropertyValue(prop);
+                  if (val && typeof val === 'string' && val.includes('oklch')) {
+                    const converted = convertOklchStringToRgb(val);
+                    el.style.setProperty(prop, converted, 'important');
+                  }
+                });
+              } catch (styleErr) {
+                // Safe fallback for detached elements
+              }
             }
           }
-        }
-      });
+        });
+      } finally {
+        // ALWAYS restore getComputedStyle immediately to prevent any potential runtime side effects!
+        window.getComputedStyle = originalGetComputedStyle;
+      }
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -569,6 +738,8 @@ export default function App() {
       showToast('❌ ไม่สามารถสร้างไฟล์ PDF ได้ กรุณาลองใช้ปุ่ม "พิมพ์/สำรอง" ด้านข้างแทน', 'error');
     } finally {
       setIsGeneratingPdf(false);
+      // Guarantee restore as double protection
+      window.getComputedStyle = originalGetComputedStyle;
     }
   };
 
