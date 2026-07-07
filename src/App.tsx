@@ -582,12 +582,85 @@ export default function App() {
       return;
     }
 
-    // Capture the original getComputedStyle to restore later
+    // Capture the original getComputedStyle and fetch to restore later
     const originalGetComputedStyle = window.getComputedStyle;
+    const originalFetch = window.fetch;
+    const originalGetPropertyValue = CSSStyleDeclaration.prototype.getPropertyValue;
+    
+    let originalCssTextDescriptor: PropertyDescriptor | undefined;
+    let cssTextTargetPrototype: any = null;
+    
+    if (typeof CSSStyleRule !== 'undefined' && CSSStyleRule.prototype) {
+      originalCssTextDescriptor = Object.getOwnPropertyDescriptor(CSSStyleRule.prototype, 'cssText');
+      cssTextTargetPrototype = CSSStyleRule.prototype;
+    } else if (typeof CSSRule !== 'undefined' && CSSRule.prototype) {
+      originalCssTextDescriptor = Object.getOwnPropertyDescriptor(CSSRule.prototype, 'cssText');
+      cssTextTargetPrototype = CSSRule.prototype;
+    }
 
     try {
       setIsGeneratingPdf(true);
       showToast('⏳ กำลังจัดเตรียมหน้ากระดาษและดาวน์โหลด PDF ความละเอียดสูง...', 'info');
+
+      // Low-level patch 1: Intercept getPropertyValue to sanitize oklch colors in any style query
+      try {
+        CSSStyleDeclaration.prototype.getPropertyValue = function (propertyName: string) {
+          const val = originalGetPropertyValue.call(this, propertyName);
+          if (val && typeof val === 'string' && val.includes('oklch')) {
+            return convertOklchStringToRgb(val);
+          }
+          return val;
+        };
+      } catch (patchErr) {
+        console.warn('Failed to patch CSSStyleDeclaration.prototype.getPropertyValue:', patchErr);
+      }
+
+      // Low-level patch 2: Intercept cssText getter to sanitize oklch colors when html2canvas parses stylesheet rules
+      if (originalCssTextDescriptor && originalCssTextDescriptor.get && cssTextTargetPrototype) {
+        try {
+          const originalGet = originalCssTextDescriptor.get;
+          Object.defineProperty(cssTextTargetPrototype, 'cssText', {
+            configurable: true,
+            enumerable: originalCssTextDescriptor.enumerable,
+            get() {
+              const val = originalGet.call(this);
+              if (val && typeof val === 'string' && val.includes('oklch')) {
+                return convertOklchStringToRgb(val);
+              }
+              return val;
+            }
+          });
+        } catch (patchErr) {
+          console.warn('Failed to patch cssText property descriptor:', patchErr);
+        }
+      }
+
+      // MONKEY-PATCH window.fetch to intercept and sanitize stylesheet fetches from html2canvas.
+      // This completely prevents html2canvas from loading un-sanitized raw CSS containing 'oklch' from the server/CDN!
+      window.fetch = async function (input, init) {
+        try {
+          const response = await originalFetch(input, init);
+          const url = typeof input === 'string' ? input : (input && typeof input === 'object' && 'url' in input ? (input as any).url : '');
+          const contentType = response.headers.get('content-type') || '';
+          
+          if (
+            (url && (url.includes('.css') || url.includes('tailwindcss'))) ||
+            contentType.includes('css')
+          ) {
+            const text = await response.text();
+            const modifiedText = convertOklchStringToRgb(text);
+            return new Response(modifiedText, {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            });
+          }
+          return response;
+        } catch (fetchErr) {
+          console.warn('Error in intercepted fetch:', fetchErr);
+          return originalFetch(input, init);
+        }
+      };
 
       // PREPROCESS: Convert all OKLCH colors in page styleSheets and style elements to sRGB.
       // This completely prevents html2canvas from crashing when parsing unsupported 'oklch' CSS color variables!
@@ -599,11 +672,23 @@ export default function App() {
             if (rule instanceof CSSStyleRule) {
               if (rule.cssText && rule.cssText.includes('oklch')) {
                 const style = rule.style;
+                // Standard properties
                 for (let k = 0; k < style.length; k++) {
                   const prop = style[k];
                   const val = style.getPropertyValue(prop);
                   if (val && val.includes('oklch')) {
                     style.setProperty(prop, convertOklchStringToRgb(val), style.getPropertyPriority(prop));
+                  }
+                }
+                // Custom CSS variables (e.g. Tailwind v4 variables)
+                const varMatches = rule.cssText.match(/(--[\w-]+)\s*:/g);
+                if (varMatches) {
+                  for (let m = 0; m < varMatches.length; m++) {
+                    const prop = varMatches[m].replace(':', '').trim();
+                    const val = style.getPropertyValue(prop);
+                    if (val && val.includes('oklch')) {
+                      style.setProperty(prop, convertOklchStringToRgb(val), style.getPropertyPriority(prop));
+                    }
                   }
                 }
               }
@@ -681,6 +766,122 @@ export default function App() {
           logging: false,
           backgroundColor: currentQuotation.template === 'luxury' || currentQuotation.template === 'dark' ? '#09090b' : '#ffffff',
           onclone: (clonedDoc) => {
+            const iframeWindow = clonedDoc.defaultView;
+            if (iframeWindow) {
+              // 1. Monkey-patch the iframe's getComputedStyle to intercept and convert 'oklch' values
+              try {
+                const originalIframeGetComputedStyle = iframeWindow.getComputedStyle;
+                iframeWindow.getComputedStyle = function (el, pseudoElt) {
+                  const style = originalIframeGetComputedStyle(el, pseudoElt);
+                  return new Proxy(style, {
+                    get(target, prop) {
+                      if (prop === 'getPropertyValue') {
+                        return function (propertyName: string) {
+                          const val = target.getPropertyValue(propertyName);
+                          if (val && typeof val === 'string' && val.includes('oklch')) {
+                            return convertOklchStringToRgb(val);
+                          }
+                          return val;
+                        };
+                      }
+                      const val = (target as any)[prop];
+                      if (val && typeof val === 'string' && val.includes('oklch')) {
+                        return convertOklchStringToRgb(val);
+                      }
+                      if (typeof val === 'function') {
+                        return val.bind(target);
+                      }
+                      return val;
+                    },
+                  });
+                };
+              } catch (patchErr) {
+                console.warn('Failed to patch iframe getComputedStyle:', patchErr);
+              }
+
+              // 2. Monkey-patch CSSStyleDeclaration.prototype.getPropertyValue in the iframe
+              try {
+                if (iframeWindow.CSSStyleDeclaration && iframeWindow.CSSStyleDeclaration.prototype) {
+                  const originalIframeGetPropertyValue = iframeWindow.CSSStyleDeclaration.prototype.getPropertyValue;
+                  iframeWindow.CSSStyleDeclaration.prototype.getPropertyValue = function (propertyName: string) {
+                    const val = originalIframeGetPropertyValue.call(this, propertyName);
+                    if (val && typeof val === 'string' && val.includes('oklch')) {
+                      return convertOklchStringToRgb(val);
+                    }
+                    return val;
+                  };
+                }
+              } catch (patchErr) {
+                console.warn('Failed to patch iframe CSSStyleDeclaration prototype:', patchErr);
+              }
+            }
+
+            // 3. Fallback convert textContent of any style tags inside the cloned iframe document
+            try {
+              const styleElements = clonedDoc.getElementsByTagName('style');
+              for (let i = 0; i < styleElements.length; i++) {
+                const el = styleElements[i];
+                if (el.textContent && el.textContent.includes('oklch')) {
+                  el.textContent = convertOklchStringToRgb(el.textContent);
+                }
+              }
+            } catch (styleErr) {
+              console.warn('Failed to clean oklch in iframe style tags:', styleErr);
+            }
+
+            // 4. Preprocess all stylesheet rules inside clonedDoc to replace oklch custom variables and rules
+            try {
+              const processCloneRules = (rules: CSSRuleList) => {
+                for (let j = 0; j < rules.length; j++) {
+                  const rule = rules[j];
+                  if (rule instanceof CSSStyleRule) {
+                    if (rule.cssText && rule.cssText.includes('oklch')) {
+                      const style = rule.style;
+                      // Convert standard properties
+                      for (let k = 0; k < style.length; k++) {
+                        const prop = style[k];
+                        const val = style.getPropertyValue(prop);
+                        if (val && val.includes('oklch')) {
+                          style.setProperty(prop, convertOklchStringToRgb(val), style.getPropertyPriority(prop));
+                        }
+                      }
+                      // Convert custom variables (Tailwind v4 custom properties)
+                      const varMatches = rule.cssText.match(/(--[\w-]+)\s*:/g);
+                      if (varMatches) {
+                        for (let m = 0; m < varMatches.length; m++) {
+                          const prop = varMatches[m].replace(':', '').trim();
+                          const val = style.getPropertyValue(prop);
+                          if (val && val.includes('oklch')) {
+                            style.setProperty(prop, convertOklchStringToRgb(val), style.getPropertyPriority(prop));
+                          }
+                        }
+                      }
+                    }
+                  } else if (rule && 'cssRules' in rule) {
+                    try {
+                      const subRules = (rule as any).cssRules as CSSRuleList;
+                      if (subRules) {
+                        processCloneRules(subRules);
+                      }
+                    } catch (subErr) {}
+                  }
+                }
+              };
+
+              for (let i = 0; i < clonedDoc.styleSheets.length; i++) {
+                const sheet = clonedDoc.styleSheets[i];
+                try {
+                  const rules = sheet.cssRules || sheet.rules;
+                  if (rules) {
+                    processCloneRules(rules);
+                  }
+                } catch (sheetErr) {}
+              }
+            } catch (stylePreloadErr) {
+              console.warn('Failed to pre-process iframe stylesheets:', stylePreloadErr);
+            }
+
+            // 5. Clean elements' inline styles directly as a ultimate double protection layer
             const elements = clonedDoc.getElementsByTagName('*');
             const props = [
               'color',
@@ -701,7 +902,7 @@ export default function App() {
               if (!el.style) continue;
 
               try {
-                const style = window.getComputedStyle(el);
+                const style = iframeWindow ? iframeWindow.getComputedStyle(el) : window.getComputedStyle(el);
                 props.forEach((prop) => {
                   const val = style.getPropertyValue(prop);
                   if (val && typeof val === 'string' && val.includes('oklch')) {
@@ -716,8 +917,17 @@ export default function App() {
           }
         });
       } finally {
-        // ALWAYS restore getComputedStyle immediately to prevent any potential runtime side effects!
+        // ALWAYS restore getComputedStyle, fetch, and prototypes immediately to prevent any potential runtime side effects!
         window.getComputedStyle = originalGetComputedStyle;
+        window.fetch = originalFetch;
+        CSSStyleDeclaration.prototype.getPropertyValue = originalGetPropertyValue;
+        if (originalCssTextDescriptor && cssTextTargetPrototype) {
+          try {
+            Object.defineProperty(cssTextTargetPrototype, 'cssText', originalCssTextDescriptor);
+          } catch (restoreErr) {
+            console.warn('Failed to restore cssText descriptor:', restoreErr);
+          }
+        }
       }
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -740,6 +950,15 @@ export default function App() {
       setIsGeneratingPdf(false);
       // Guarantee restore as double protection
       window.getComputedStyle = originalGetComputedStyle;
+      window.fetch = originalFetch;
+      CSSStyleDeclaration.prototype.getPropertyValue = originalGetPropertyValue;
+      if (originalCssTextDescriptor && cssTextTargetPrototype) {
+        try {
+          Object.defineProperty(cssTextTargetPrototype, 'cssText', originalCssTextDescriptor);
+        } catch (restoreErr) {
+          console.warn('Failed to restore cssText descriptor:', restoreErr);
+        }
+      }
     }
   };
 

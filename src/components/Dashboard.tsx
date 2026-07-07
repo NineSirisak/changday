@@ -253,68 +253,82 @@ export default function Dashboard({
         </button>
       </div>
 
-      {/* Workspace Tabs Navigator */}
-      <div className="grid grid-cols-6 border-b border-slate-800 bg-slate-950/40 text-slate-400">
-        <button
-          onClick={() => setActiveTab('doc')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'doc' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="เอกสาร"
-        >
-          <FileText className="w-4 h-4" />
-          <span className="text-[8px] font-bold">เอกสาร</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'profile' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="ผู้เสนอราคา"
-        >
-          <Briefcase className="w-4 h-4" />
-          <span className="text-[8px] font-bold">ผู้เสนอ</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('customer')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'customer' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="ลูกค้า"
-        >
-          <Users className="w-4 h-4" />
-          <span className="text-[8px] font-bold">ลูกค้า</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('items')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'items' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="รายการ"
-        >
-          <Layers className="w-4 h-4" />
-          <span className="text-[8px] font-bold">รายการ</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('payment')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'payment' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="การเงิน"
-        >
-          <DollarSign className="w-4 h-4" />
-          <span className="text-[8px] font-bold">การเงิน</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('drafts')}
-          className={`py-2 text-center flex flex-col items-center gap-1 border-b-2 transition-all ${
-            activeTab === 'drafts' ? 'border-amber-500 text-amber-400 bg-slate-800/30' : 'border-transparent hover:text-slate-200'
-          }`}
-          title="ร่างที่เซฟ"
-        >
-          <Copy className="w-4 h-4" />
-          <span className="text-[8px] font-bold">เซฟไว้</span>
-        </button>
+      {/* Workspace Tabs Navigator - Premium Grid Layout */}
+      <div className="p-3 bg-slate-950/60 border-b border-slate-800/80">
+        <div className="grid grid-cols-3 gap-2 text-slate-400">
+          <button
+            onClick={() => setActiveTab('doc')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'doc'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="ตั้งค่าเอกสาร"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">ตั้งค่าเอกสาร</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'profile'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="ผู้เสนอราคา"
+          >
+            <Briefcase className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">ผู้เสนอราคา</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('customer')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'customer'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="ข้อมูลลูกค้า"
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">ข้อมูลลูกค้า</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('items')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'items'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="รายการสินค้า/งาน"
+          >
+            <Layers className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">รายการสินค้า</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('payment')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'payment'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="การเงินและภาษี"
+          >
+            <DollarSign className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">การเงิน/ภาษี</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('drafts')}
+            className={`py-3 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition-all duration-200 cursor-pointer ${
+              activeTab === 'drafts'
+                ? 'border-amber-500/80 bg-gradient-to-br from-amber-500/10 to-amber-500/20 text-amber-400 shadow-md shadow-amber-500/5'
+                : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:text-slate-100 hover:border-slate-700'
+            }`}
+            title="แบบร่างที่บันทึกไว้"
+          >
+            <Copy className="w-4 h-4" />
+            <span className="text-[9.5px] font-bold font-title tracking-tight">แบบร่างเซฟ</span>
+          </button>
+        </div>
       </div>
 
       {/* Tab Contents Frame */}
@@ -328,13 +342,21 @@ export default function Dashboard({
               <label className="text-[10px] text-slate-400 block font-semibold">เลย์เอาต์เทมเพลต (Template Design)</label>
               <select
                 value={currentQuotation.template}
-                onChange={(e) => setDoc('template', e.target.value)}
+                onChange={(e) => {
+                  setDoc('template', e.target.value);
+                  onSetActiveView('preview');
+                }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-500"
               >
                 <option value="classic">1. Classic White (สไตล์โมเดิร์นคลีน)</option>
                 <option value="luxury">2. Luxury Gold (สไตล์หรูหราพรีเมียมสีทอง)</option>
                 <option value="dark">3. Dark Gold Minimal (สไตล์โมเดิร์นมืดหรูหรา)</option>
                 <option value="elegant">4. Elegant Cream Accent (สไตล์คลาสสิกบูทีค)</option>
+                <option value="thai-navy">5. Thai Standard Navy (สีกรมท่าทางการ - โทนสว่าง)</option>
+                <option value="thai-emerald">6. Thai Creative Emerald (สีเขียวมรกตเอเจนซี่ - โทนสว่าง)</option>
+                <option value="thai-crimson">7. Thai Active Crimson (สีแดงคริมสันกระฉับกระเฉง - โทนสว่าง)</option>
+                <option value="thai-teal">8. Thai Modern Teal (สีฟ้าเทลคลินิก/เทคโนโลยี - โทนสว่าง)</option>
+                <option value="thai-charcoal">9. Thai Premium Charcoal (สีเทาชาโคลเรียบหรู - โทนสว่าง)</option>
               </select>
             </div>
 

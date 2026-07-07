@@ -62,6 +62,6 @@ export interface Quotation {
   bank: BankAccount;
   signeeName: string;
   signeePosition: string;
-  template: 'classic' | 'luxury' | 'dark' | 'elegant';
+  template: 'classic' | 'luxury' | 'dark' | 'elegant' | 'thai-navy' | 'thai-emerald' | 'thai-crimson' | 'thai-teal' | 'thai-charcoal';
   updatedAt: string;
 }
